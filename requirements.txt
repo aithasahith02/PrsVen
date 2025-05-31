@@ -9,3 +9,7 @@ uvicorn
 pydantic
 numpy
 scikit-learn
+pytest
+pytest-asyncio
+httpx
+pytest-mock
