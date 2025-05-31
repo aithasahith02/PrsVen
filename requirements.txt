@@ -4,3 +4,8 @@ scikit-survival
 lifelines 
 pandas
 joblib
+fastapi
+uvicorn
+pydantic
+numpy
+scikit-learn
