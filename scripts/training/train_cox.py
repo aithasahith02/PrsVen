@@ -7,7 +7,7 @@ from lifelines import CoxPHFitter
 import joblib
 import os
 
-# Data files
+# Data and model files
 DATA_PATH = "data/processed/cleaned_data.csv"
 MODEL_PATH = "models/cox_model.pkl"
 

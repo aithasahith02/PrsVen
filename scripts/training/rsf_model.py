@@ -11,8 +11,8 @@ from sksurv.ensemble import RandomSurvivalForest
 from sksurv.util import Surv
 
 # Data and model files
-DATA_PATH = "/content/drive/MyDrive/dataset/cleaned_data.csv"
-MODEL_PATH = "/content/drive/MyDrive/dataset/rsf_model.pkl"
+DATA_PATH = "data/processed/cleaned_data.csv"
+MODEL_PATH = "models/rsf_model.pkl"
 
 
 def train_rsf():
