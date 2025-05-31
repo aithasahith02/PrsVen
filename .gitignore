@@ -1,1 +1,5 @@
 survival_data.csv
+.DS_Store
+models/.DS_Store
+models/rsf_model.pkl
+scripts/api/__pycache__/app.cpython-312.pyc
