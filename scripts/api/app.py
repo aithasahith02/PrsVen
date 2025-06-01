@@ -19,9 +19,20 @@ try:
     gender_encoder = joblib.load(gender_encoder_path)
     smoker_encoder = joblib.load(smoker_encoder_path)
 except FileNotFoundError as e:
-    print(f"CRITICAL ERROR: Could not load one or more model files. "
-          f"Attempted to load from '{_MODELS_DIR}'. Original error: {e}")
-    raise RuntimeError(f"Failed to load critical model/preprocessor files from '{_MODELS_DIR}'") from e
+    error_message = (
+        f"CRITICAL ERROR: Could not load one or more model/preprocessor files. "
+        f"Attempted to load from calculated directory: '{_MODELS_DIR}'. "
+        f"Please ensure models (rsf_model.pkl, scaler.joblib, etc.) exist there. Original error: {e}"
+    )
+    print(error_message)
+    raise RuntimeError(error_message) from e
+except Exception as e: 
+    error_message = (
+        f"CRITICAL ERROR: Failed to load models/preprocessors from '{_MODELS_DIR}'. "
+        f"Error: {e}. This could be due to file corruption or library version mismatches."
+    )
+    print(error_message)
+    raise RuntimeError(error_message) from e
 
 # Define FastAPI app
 app = FastAPI(title="Survival Prediction API")
@@ -35,38 +46,47 @@ class PatientData(BaseModel):
 
 @app.post("/predict")
 def predict_survival(data: PatientData):
-    expected_n_features = 75
+    expected_n_features = 75 # Number of 'feature_X' columns
     if len(data.features) != expected_n_features:
         raise HTTPException(status_code=400, detail=f"Expected {expected_n_features} features, but got {len(data.features)}.")
 
+    # Prepare data for scaling
     df_for_scaling_dict = {}
     for i, val in enumerate(data.features):
         df_for_scaling_dict[f"feature_{i+1}"] = [val]
     df_for_scaling_dict["age"] = [data.age]
     df_to_scale = pd.DataFrame(df_for_scaling_dict)
+
     scaler_input_columns = [f"feature_{i+1}" for i in range(expected_n_features)] + ["age"]
     df_to_scale = df_to_scale[scaler_input_columns]
     scaled_features_and_age_array = scaler.transform(df_to_scale)
     df_scaled_numerical = pd.DataFrame(scaled_features_and_age_array, columns=scaler_input_columns)
 
+    # Encoding
     try:
         encoded_gender = gender_encoder.transform([data.gender])[0]
         encoded_smoker_status = smoker_encoder.transform([data.smoker_status])[0]
     except ValueError as e:
+        # Make sure your mock encoders in tests also have the .classes_ attribute for this message
         known_gender_classes = list(gender_encoder.classes_) if hasattr(gender_encoder, 'classes_') else ["unknown"]
         known_smoker_classes = list(smoker_encoder.classes_) if hasattr(smoker_encoder, 'classes_') else ["unknown"]
         raise HTTPException(status_code=400, detail=f"Invalid categorical value provided: {str(e)}. Ensure gender is one of {known_gender_classes} and smoker_status is one of {known_smoker_classes}.")
 
+    # Prepare final input for the model
     final_model_input_dict = {}
     final_model_input_dict["gender"] = [encoded_gender]
     final_model_input_dict["smoker_status"] = [encoded_smoker_status]
+
     for i in range(expected_n_features):
         col_name = f"feature_{i+1}"
         final_model_input_dict[col_name] = [df_scaled_numerical[col_name].iloc[0]]
+
     final_model_input_dict["age"] = [df_scaled_numerical["age"].iloc[0]]
+
     model_training_columns_order = ["gender", "smoker_status"] + [f"feature_{i+1}" for i in range(expected_n_features)] + ["age"]
     final_model_input_df = pd.DataFrame(final_model_input_dict, columns=model_training_columns_order)
 
+    # Predict function
     try:
         surv_funcs = rsf_model.predict_survival_function(final_model_input_df)
     except Exception as e:
