@@ -11,6 +11,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code (without Git LFS)
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
       - name: Set up Python
         uses: actions/setup-python@v5 
         with:
