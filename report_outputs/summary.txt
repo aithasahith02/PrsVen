@@ -1,0 +1,8 @@
+Model Performance Summary
+
+Model  C-Index  AUC@12  AUC@24  AUC@36    IBS
+CoxPH   0.5481  0.4340  0.4437  0.4448 0.1891
+  RSF   0.8005  0.0944  0.0938  0.0833 0.1630
+
+Bonus Info:
+Mean Life Expectancy (Non-Smoker Females): 73.46
