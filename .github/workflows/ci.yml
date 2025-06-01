@@ -45,10 +45,10 @@ jobs:
           S3_BUCKET_NAME: "model-bucket-rfs"
         run: |
           mkdir -p ./models
-          aws s3 cp s3://model-bucket-rfs/rsf_model.pkl
-          aws s3 cp s3://model-bucket-rfs/scaler.joblib
-          aws s3 cp s3://model-bucket-rfs/gender_encoder.joblib
-          aws s3 cp s3://model-bucket-rfs/smoker_encoder.joblib
+          aws s3 cp s3://model-bucket-rfs/rsf_model.pkl ./models/rsf_model.pkl
+          aws s3 cp s3://model-bucket-rfs/scaler.joblib ./models/scaler.joblib
+          aws s3 cp s3://model-bucket-rfs/gender_encoder.joblib ./models/gender_encoder.joblib
+          aws s3 cp s3://model-bucket-rfs/smoker_encoder.joblib ./models/smoker_encoder.joblib
           echo "Models downloaded from S3."
           ls -lh ./models
 
