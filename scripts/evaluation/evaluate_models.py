@@ -1,7 +1,3 @@
-"""
-This is the Script to evaluate the models RSF and COX
-Initial evaluation report:
-"""
 import pandas as pd
 import joblib
 import numpy as np
@@ -31,8 +27,6 @@ def evaluate_cox(df, y):
     cph = joblib.load(COX_MODEL_PATH)
     X = df.drop(columns=["time_to_event", "event"])
     times = np.array([12, 24, 36])
-
-
 
     surv_df = cph.predict_survival_function(X, times=times)
     surv_matrix = surv_df.T.to_numpy()
@@ -87,18 +81,42 @@ def mean_life_expectancy_rsf(X, df):
 
     return round(np.mean(mean_life_expectancy), 2)
 
-if __name__ == "__main__":
+# Helper function to generate evaluation report
+def get_model_evaluation_summary():
     df, X, y = load_data()
-
+    times = np.array([12, 24, 36])
     print("Evaluating CoxPH...")
+    cox = joblib.load(COX_MODEL_PATH)
     cox_results = evaluate_cox(df, y)
-
+    cox_surv_df = cox.predict_survival_function(df.drop(columns=["time_to_event", "event"]), times=times)
+    cox_auc, _ = cumulative_dynamic_auc(y, y, cox_surv_df.T.to_numpy(), times)
+    _, cox_brier = brier_score(y, y, cox_surv_df.T.to_numpy(), times)
     print("Evaluating RSF...")
+    rsf = joblib.load(RSF_MODEL_PATH)
     rsf_results = evaluate_rsf(X, y)
+    rsf_surv_funcs = rsf.predict_survival_function(X)
+    surv_matrix = np.row_stack([fn(times) for fn in rsf_surv_funcs])
+    rsf_auc, _ = cumulative_dynamic_auc(y, y, surv_matrix, times)
+    _, rsf_brier = brier_score(y, y, surv_matrix, times)
+    mean_life = mean_life_expectancy_rsf(X, df)
+    return {
+        "models": [cox_results, rsf_results],
+        "bonus": {
+            "Mean Life Expectancy (Non-Smoker Females)": mean_life
+        },
+        "times": times.tolist(),
+        "cox_auc": cox_auc.tolist(),
+        "rsf_auc": rsf_auc.tolist(),
+        "cox_brier": cox_brier.tolist(),
+        "rsf_brier": rsf_brier.tolist(),
+        "rsf_surv_funcs": rsf_surv_funcs
+    }
 
+if __name__ == "__main__":
+    summary = get_model_evaluation_summary()
     print("Model Comparison:")
-    print(cox_results)
-    print(rsf_results)
-
-    print("\n Bonus: Mean Life Expectancy (Non-Smoker Females):")
-    print(f"{mean_life_expectancy_rsf(X, df)} months")
+    for model in summary["models"]:
+        print(model)
+    print("\nBonus:")
+    for k, v in summary["bonus"].items():
+        print(f"{k}: {v}")
