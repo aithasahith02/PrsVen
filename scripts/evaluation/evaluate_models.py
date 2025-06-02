@@ -23,8 +23,9 @@ def load_data():
 # Evaluatiing first model - COX
 def evaluate_cox(df, y):
     from lifelines import CoxPHFitter
-
     cph = joblib.load(COX_MODEL_PATH)
+    if not isinstance(cph, CoxPHFitter):
+        raise TypeError(f"Expected lifelines.CoxPHFitter, but got {type(cph)}. Check if model path is correct.")
     X = df.drop(columns=["time_to_event", "event"])
     times = np.array([12, 24, 36])
 

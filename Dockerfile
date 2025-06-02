@@ -32,8 +32,13 @@ WORKDIR /app
 
 COPY --from=builder /usr/local/lib/python3.12 /usr/local/lib/python3.12
 COPY --from=builder /usr/local/bin /usr/local/bin
-
 COPY --from=builder /app /app
+
+COPY scripts/ /opt/airflow/scripts/
+COPY dags/ /opt/airflow/dags/
+COPY data/ /opt/airflow/data/
+
+RUN mkdir -p /opt/airflow/dags /opt/airflow/logs /opt/airflow/plugins
 
 EXPOSE 8000
 
