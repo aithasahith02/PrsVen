@@ -18,7 +18,7 @@ python scripts/training/save_training_data.py
 
 # Step 2: Send 100 synthetic inputs to the API
 echo "Sending 100 synthetic inputs to FastAPI..."
-python scripts/api/send_hundred_inputs.py
+python scripts/api/send_hundred_responses.py
 
 sleep 2
 
