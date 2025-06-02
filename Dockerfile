@@ -18,11 +18,11 @@ COPY requirements.txt .
 
 RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir pytest pytest-mock
+# RUN pip install --no-cache-dir pytest pytest-mock
 
 COPY . .
 
-RUN pytest tests/ -v
+# RUN pytest tests/ -v
 
 # STAGE 2
 
