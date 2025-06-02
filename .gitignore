@@ -6,3 +6,10 @@ models/rsf_model.pkl
 scripts/api/__pycache__/app.cpython-312.pyc
 __pycache__/
 *.pycmodels/cox_model.pkl
+api_raw_inference_logs.jsonl
+data/
+datalake/
+feature_distribution_reports/
+models/test*.pkl
+models/test*.joblib
+
