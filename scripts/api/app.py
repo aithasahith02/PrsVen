@@ -39,6 +39,15 @@ except Exception as e:
 
 app = FastAPI(title="Survival Prediction API")
 
+# Health check end point for k8s
+@app.get("/health", status_code=200, tags=["Health Check"])
+async def health_check():
+    """
+    Simple health check endpoint.
+    Returns a 200 OK if the application is responsive.
+    """
+    return {"status": "healthy", "message": "Survival Prediction API is up and running!"}
+
 class PatientData(BaseModel):
     gender: str
     smoker_status: str
