@@ -1,9 +1,12 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 import joblib
 import numpy as np
 import pandas as pd
-import os 
+import os
+import datetime                    
+import uuid                        
+import json                 
 
 _CURRENT_FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 _MODELS_DIR = os.path.join(_CURRENT_FILE_DIR, '..', '..', 'models')
@@ -26,7 +29,7 @@ except FileNotFoundError as e:
     )
     print(error_message)
     raise RuntimeError(error_message) from e
-except Exception as e: 
+except Exception as e:
     error_message = (
         f"CRITICAL ERROR: Failed to load models/preprocessors from '{_MODELS_DIR}'. "
         f"Error: {e}. This could be due to file corruption or library version mismatches."
@@ -34,69 +37,80 @@ except Exception as e:
     print(error_message)
     raise RuntimeError(error_message) from e
 
-# Define FastAPI app
 app = FastAPI(title="Survival Prediction API")
 
-# Define input schema
 class PatientData(BaseModel):
     gender: str
     smoker_status: str
     age: float
     features: list[float]
 
+# Functio to send data to the pipeline
+def send_to_data_lake_pipeline(log_payload: dict):
+    print(f"DATA_LAKE_INGEST_PAYLOAD: {json.dumps(log_payload)}")
+    try:
+        with open("api_raw_inference_logs.jsonl", "a") as f: # Writes to where app.py is run
+            f.write(json.dumps(log_payload) + "\n")
+    except Exception as e:
+        print(f"Error writing to local log file: {e}")
+
 @app.post("/predict")
-def predict_survival(data: PatientData):
-    expected_n_features = 75 # Number of 'feature_X' columns
+def predict_survival(data: PatientData, background_tasks: BackgroundTasks): 
+    expected_n_features = 75
     if len(data.features) != expected_n_features:
         raise HTTPException(status_code=400, detail=f"Expected {expected_n_features} features, but got {len(data.features)}.")
 
-    # Prepare data for scaling
+    # Prepare for scaling
     df_for_scaling_dict = {}
     for i, val in enumerate(data.features):
         df_for_scaling_dict[f"feature_{i+1}"] = [val]
     df_for_scaling_dict["age"] = [data.age]
     df_to_scale = pd.DataFrame(df_for_scaling_dict)
-
     scaler_input_columns = [f"feature_{i+1}" for i in range(expected_n_features)] + ["age"]
     df_to_scale = df_to_scale[scaler_input_columns]
     scaled_features_and_age_array = scaler.transform(df_to_scale)
     df_scaled_numerical = pd.DataFrame(scaled_features_and_age_array, columns=scaler_input_columns)
-
-    # Encoding
     try:
         encoded_gender = gender_encoder.transform([data.gender])[0]
         encoded_smoker_status = smoker_encoder.transform([data.smoker_status])[0]
     except ValueError as e:
-        # Make sure your mock encoders in tests also have the .classes_ attribute for this message
         known_gender_classes = list(gender_encoder.classes_) if hasattr(gender_encoder, 'classes_') else ["unknown"]
         known_smoker_classes = list(smoker_encoder.classes_) if hasattr(smoker_encoder, 'classes_') else ["unknown"]
         raise HTTPException(status_code=400, detail=f"Invalid categorical value provided: {str(e)}. Ensure gender is one of {known_gender_classes} and smoker_status is one of {known_smoker_classes}.")
-
-    # Prepare final input for the model
     final_model_input_dict = {}
     final_model_input_dict["gender"] = [encoded_gender]
     final_model_input_dict["smoker_status"] = [encoded_smoker_status]
-
     for i in range(expected_n_features):
         col_name = f"feature_{i+1}"
         final_model_input_dict[col_name] = [df_scaled_numerical[col_name].iloc[0]]
-
     final_model_input_dict["age"] = [df_scaled_numerical["age"].iloc[0]]
-
     model_training_columns_order = ["gender", "smoker_status"] + [f"feature_{i+1}" for i in range(expected_n_features)] + ["age"]
     final_model_input_df = pd.DataFrame(final_model_input_dict, columns=model_training_columns_order)
-
-    # Predict function
     try:
         surv_funcs = rsf_model.predict_survival_function(final_model_input_df)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error during model prediction: {str(e)}")
-
     times = surv_funcs[0].x
     survival_probs = surv_funcs[0].y
     expected_months = float(np.trapz(survival_probs, times))
-
-    return {
+    
+    prediction_result = {
         "survival_curve": list(zip(times.tolist(), survival_probs.tolist())),
         "expected_survival_months": round(expected_months, 2)
     }
+
+    request_id = str(uuid.uuid4())
+    current_timestamp = datetime.datetime.utcnow().isoformat()
+
+    # Payload - log
+    raw_log_payload = {
+        "request_id": request_id,
+        "timestamp": current_timestamp,
+        "model_version": "rsf_model_v1.0", 
+        "input_features_raw": data.dict(), 
+        "prediction_output": prediction_result
+    }
+
+    background_tasks.add_task(send_to_data_lake_pipeline, raw_log_payload)
+    
+    return prediction_result
