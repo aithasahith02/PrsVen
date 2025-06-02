@@ -1,4 +1,4 @@
-Survival Analysis MLOps Pipeline --- Production-Grade ML System
+Survival Analysis MLOps Pipeline 
 =============================================================
 
 [![Build Status](https://github.com/aithasahith02/PrsVen/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/survival-mlops/actions)
