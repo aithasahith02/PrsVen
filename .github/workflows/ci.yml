@@ -54,3 +54,34 @@ jobs:
 
       - name: Run Pytest
         run: pytest tests/ -v
+
+  deploy-to-k8s:
+    needs: build-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build & Push Docker Image
+        run: |
+          docker build -t sahithaitha02/home-assignment-survivalprediction:latest .
+          docker push sahithaitha02/home-assignment-survivalprediction:latest
+
+      - name: Setup Kubeconfig
+        run: |
+          echo "${{ secrets.KUBECONFIG_DATA }}" | base64 -d > kubeconfig
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DATA }}
+
+      - name: Deploy to Kubernetes
+        run: |
+          export KUBECONFIG=$PWD/kubeconfig
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
