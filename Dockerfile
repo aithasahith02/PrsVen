@@ -36,8 +36,7 @@ COPY --from=builder /app /app
 
 COPY scripts/ /opt/airflow/scripts/
 COPY dags/ /opt/airflow/dags/
-COPY data/ /opt/airflow/data/
-
+# COPY data/ /opt/airflow/data/ - ignoring to keep the dataset private
 RUN mkdir -p /opt/airflow/dags /opt/airflow/logs /opt/airflow/plugins
 
 EXPOSE 8000
