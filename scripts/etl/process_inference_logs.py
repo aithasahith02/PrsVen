@@ -1,4 +1,4 @@
-# PRSVEN/scripts/etl/process_inference_logs.py
+# Processes the inference logs for the drift detection
 import pandas as pd
 import json
 import os
